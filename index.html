@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Lesetracker">
+  <title>Lesetracker</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <style>
+    :root{color-scheme:light dark;--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--accentText:#fff;--danger:#b91c1c;--shadow:0 10px 30px rgba(0,0,0,.06)}
+    @media(prefers-color-scheme:dark){:root{--bg:#0b0f19;--card:#151b28;--text:#f9fafb;--muted:#9ca3af;--line:#2b3444;--accent:#f9fafb;--accentText:#111827;--danger:#f87171;--shadow:0 10px 30px rgba(0,0,0,.25)}}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+    main{width:min(680px,100%);margin:auto;padding:max(24px,env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom))}
+    h1{margin:0 0 6px;font-size:30px;letter-spacing:-.8px}.subtitle{margin:0 0 22px;color:var(--muted);font-size:15px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}
+    .grid{display:grid;gap:14px}label{display:block;font-size:13px;font-weight:650;margin-bottom:7px;color:var(--muted)}
+    input,select,button{width:100%;min-height:48px;font:inherit;border-radius:14px;border:1px solid var(--line)}
+    input,select{padding:0 14px;background:var(--card);color:var(--text);font-size:17px}button{padding:0 16px;background:var(--card);color:var(--text);font-weight:700;cursor:pointer}
+    button.primary{background:var(--accent);color:var(--accentText);border-color:var(--accent)}button.danger{color:var(--danger)}button.link{width:auto;min-height:auto;border:0;background:transparent;color:var(--muted);padding:6px;font-size:13px}
+    .bookrow{display:grid;grid-template-columns:1fr 52px;gap:8px}.bookrow button{font-size:24px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 8px;text-align:center}.stat strong{display:block;font-size:23px}.stat span{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
+    .head{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 10px}.head h2{margin:0;font-size:17px}
+    .entry,.bookitem{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.entry:last-child,.bookitem:last-child{border-bottom:0}
+    .entrytitle{font-weight:700}.meta{margin-top:3px;color:var(--muted);font-size:13px}.pages{font-weight:800;white-space:nowrap}.empty{text-align:center;color:var(--muted);padding:18px 8px}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    dialog{width:min(560px,calc(100% - 24px));border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--text);padding:18px;box-shadow:0 20px 70px rgba(0,0,0,.25)}dialog::backdrop{background:rgba(0,0,0,.35)}
+    .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--card);border-radius:999px;padding:10px 16px;opacity:0;pointer-events:none;transition:.2s;font-size:14px;font-weight:700}.toast.show{opacity:1;transform:translateX(-50%)}
+    @media(max-width:420px){h1{font-size:27px}.card{padding:16px}.stats{gap:7px}.stat strong{font-size:21px}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Lesetracker</h1>
+  <p class="subtitle">Schnell eintragen, wie viel du gelesen hast.</p>
+
+  <section class="card">
+    <form id="readingForm" class="grid">
+      <div><label for="date">Datum</label><input id="date" type="date" required></div>
+      <div>
+        <label for="book">Buch</label>
+        <div class="bookrow"><select id="book" required></select><button type="button" id="manageBooks" aria-label="Bücher verwalten">+</button></div>
+      </div>
+      <div><label for="pages">Gelesene Seiten</label><input id="pages" type="number" inputmode="numeric" min="1" step="1" placeholder="z. B. 35" required></div>
+      <button class="primary" type="submit">Eintragen</button>
+    </form>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><strong id="todayPages">0</strong><span>Heute</span></div>
+    <div class="stat"><strong id="weekPages">0</strong><span>Diese Woche</span></div>
+    <div class="stat"><strong id="monthPages">0</strong><span>Dieser Monat</span></div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <div class="head"><h2>Letzte Einträge</h2><button class="link" id="clearEntries" type="button">Alle löschen</button></div>
+    <div id="entries"></div>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2>Daten</h2></div>
+    <div class="actions"><button id="exportBtn" type="button">JSON exportieren</button><button id="importBtn" type="button">JSON importieren</button></div>
+    <input id="importFile" type="file" accept="application/json,.json" hidden>
+  </section>
+</main>
+
+<dialog id="booksDialog">
+  <h2 style="margin:0 0 14px">Bücher verwalten</h2>
+  <form id="bookForm" class="grid">
+    <div><label for="newBook">Neues Buch</label><input id="newBook" type="text" autocomplete="off" placeholder="Buchtitel" required></div>
+    <button class="primary" type="submit">Buch hinzufügen</button>
+  </form>
+  <div id="bookList" style="margin-top:14px"></div>
+  <div class="actions" style="margin-top:14px"><button id="closeBooks" type="button">Schließen</button><button id="backupBooks" type="button">Backup</button></div>
+</dialog>
+<div class="toast" id="toast">Gespeichert</div>
+
+<script>
+const DB_NAME='reading-tracker', DB_VERSION=1, BOOKS='books', READINGS='readings';
+const $=id=>document.getElementById(id);
+const dateInput=$('date'),bookSelect=$('book'),pagesInput=$('pages'),booksDialog=$('booksDialog');
+
+function localISO(d=new Date()){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(BOOKS))db.createObjectStore(BOOKS,{keyPath:'id',autoIncrement:true});if(!db.objectStoreNames.contains(READINGS))db.createObjectStore(READINGS,{keyPath:'id',autoIncrement:true})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function getAll(store){const db=await openDb();return new Promise((resolve,reject)=>{const t=db.transaction(store,'readonly'),r=t.objectStore(store).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function mutate(store,fn){const db=await openDb();return new Promise((resolve,reject)=>{const t=db.transaction(store,'readwrite');fn(t.objectStore(store));t.oncomplete=resolve;t.onerror=()=>reject(t.error)})}
+
+async function addBook(title){title=title.trim();if(!title)return;await mutate(BOOKS,s=>s.add({title,createdAt:Date.now()}));await refreshBooks(title)}
+async function deleteBook(id){const readings=await getAll(READINGS);if(readings.some(r=>r.bookId===id)){alert('Dieses Buch wird bereits in Leseeinträgen verwendet und kann deshalb nicht gelöscht werden.');return}await mutate(BOOKS,s=>s.delete(id));await refreshBooks()}
+async function refreshBooks(preselect){const books=(await getAll(BOOKS)).sort((a,b)=>a.title.localeCompare(b.title,'de'));const previous=bookSelect.value;bookSelect.innerHTML='';
+  if(!books.length){bookSelect.add(new Option('Erst ein Buch hinzufügen …',''))}
+  else{books.forEach(b=>bookSelect.add(new Option(b.title,String(b.id))));const byTitle=preselect&&books.find(b=>b.title===preselect);const saved=localStorage.getItem('lastBookId');const wanted=byTitle?String(byTitle.id):(books.some(b=>String(b.id)===previous)?previous:saved);if(wanted&&books.some(b=>String(b.id)===wanted))bookSelect.value=wanted}
+  const list=$('bookList');list.innerHTML=books.length?'':'<div class="empty">Noch keine Bücher.</div>';books.forEach(b=>{const row=document.createElement('div');row.className='bookitem';const name=document.createElement('div');name.textContent=b.title;const del=document.createElement('button');del.type='button';del.className='danger';del.textContent='Löschen';del.onclick=()=>deleteBook(b.id);row.append(name,del);list.append(row)})}
+function startOfWeek(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
+async function refreshDashboard(){const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]),names=new Map(books.map(b=>[b.id,b.title])),now=new Date(),today=localISO(now),week=localISO(startOfWeek(now)),month=today.slice(0,7)+'-01';
+  const total=(from,to=today)=>readings.filter(r=>r.date>=from&&r.date<=to).reduce((s,r)=>s+Number(r.pages||0),0);
+  $('todayPages').textContent=total(today);$('weekPages').textContent=total(week);$('monthPages').textContent=total(month);
+  const recent=readings.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt).slice(0,12),holder=$('entries');holder.innerHTML='';
+  if(!recent.length){holder.innerHTML='<div class="empty">Noch keine Leseeinträge.</div>';return}
+  recent.forEach(r=>{const row=document.createElement('div');row.className='entry';const left=document.createElement('div'),title=document.createElement('div'),meta=document.createElement('div'),pages=document.createElement('div');title.className='entrytitle';title.textContent=names.get(r.bookId)||'Unbekanntes Buch';meta.className='meta';meta.textContent=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(r.date+'T12:00:00'));pages.className='pages';pages.textContent=r.pages+' S.';left.append(title,meta);row.append(left,pages);holder.append(row)})}
+function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)}
+async function exportData(){const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]),payload={version:1,exportedAt:new Date().toISOString(),books,readings},blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lesetracker-backup-'+localISO()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+async function importData(file){const data=JSON.parse(await file.text());if(!Array.isArray(data.books)||!Array.isArray(data.readings))throw new Error('Ungültige Backup-Datei');const db=await openDb();await new Promise((resolve,reject)=>{const t=db.transaction([BOOKS,READINGS],'readwrite'),b=t.objectStore(BOOKS),r=t.objectStore(READINGS);b.clear();r.clear();data.books.forEach(x=>b.put(x));data.readings.forEach(x=>r.put(x));t.oncomplete=resolve;t.onerror=()=>reject(t.error)});await refreshBooks();await refreshDashboard()}
+
+$('readingForm').addEventListener('submit',async e=>{e.preventDefault();const bookId=Number(bookSelect.value),pages=Number(pagesInput.value);if(!bookId){booksDialog.showModal();return}if(!Number.isInteger(pages)||pages<1)return;await mutate(READINGS,s=>s.add({date:dateInput.value,bookId,pages,createdAt:Date.now()}));localStorage.setItem('lastBookId',String(bookId));pagesInput.value='';pagesInput.focus();await refreshDashboard();toast('Gespeichert')});
+$('manageBooks').onclick=()=>booksDialog.showModal();$('closeBooks').onclick=()=>booksDialog.close();
+$('bookForm').addEventListener('submit',async e=>{e.preventDefault();const input=$('newBook');await addBook(input.value);input.value='';toast('Buch hinzugefügt')});
+$('clearEntries').onclick=async()=>{if(confirm('Wirklich alle Leseeinträge löschen? Bücher bleiben erhalten.')){await mutate(READINGS,s=>s.clear());await refreshDashboard()}};
+$('exportBtn').onclick=exportData;$('backupBooks').onclick=exportData;$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{await importData(file);toast('Backup importiert')}catch(err){alert('Import fehlgeschlagen: '+err.message)}e.target.value=''});
+(async()=>{dateInput.value=localISO();await refreshBooks();await refreshDashboard();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js')})().catch(err=>{console.error(err);alert('Die lokale Datenbank konnte nicht geöffnet werden.')});
+</script>
+</body>
+</html>
