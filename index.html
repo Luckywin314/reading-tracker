@@ -13,16 +13,25 @@
   <style>
     :root{color-scheme:light dark;--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--accentText:#fff;--danger:#b91c1c;--shadow:0 10px 30px rgba(0,0,0,.06)}
     @media(prefers-color-scheme:dark){:root{--bg:#0b0f19;--card:#151b28;--text:#f9fafb;--muted:#9ca3af;--line:#2b3444;--accent:#f9fafb;--accentText:#111827;--danger:#f87171;--shadow:0 10px 30px rgba(0,0,0,.25)}}
-    *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
     main{width:min(680px,100%);margin:auto;padding:max(24px,env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom))}
     h1{margin:0 0 6px;font-size:30px;letter-spacing:-.8px}.subtitle{margin:0 0 22px;color:var(--muted);font-size:15px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}
     .grid{display:grid;gap:14px}label{display:block;font-size:13px;font-weight:650;margin-bottom:7px;color:var(--muted)}
     input,select,button{width:100%;min-height:48px;font:inherit;border-radius:14px;border:1px solid var(--line)}
-    input,select{padding:0 14px;background:var(--card);color:var(--text);font-size:17px}button{padding:0 16px;background:var(--card);color:var(--text);font-weight:700;cursor:pointer}
-    button.primary{background:var(--accent);color:var(--accentText);border-color:var(--accent)}button.danger{color:var(--danger)}button.link{width:auto;min-height:auto;border:0;background:transparent;color:var(--muted);padding:6px;font-size:13px}
+    input,select{padding:0 14px;background:var(--card);color:var(--text);font-size:17px}
+    button{padding:0 16px;background:var(--card);color:var(--text);font-weight:700;cursor:pointer}
+    button.primary{background:var(--accent);color:var(--accentText);border-color:var(--accent)}
+    button.danger{color:var(--danger)}
+    button.link{width:auto;min-height:auto;border:0;background:transparent;color:var(--muted);padding:6px;font-size:13px}
     .bookrow{display:grid;grid-template-columns:1fr 52px;gap:8px}.bookrow>button{font-size:24px}
-    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 8px;text-align:center}.stat strong{display:block;font-size:23px}.stat span{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
+    .pagegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .hint{margin-top:7px;color:var(--muted);font-size:12px;line-height:1.4}
+    .sessionPreview{min-height:42px;border:1px dashed var(--line);border-radius:13px;display:flex;align-items:center;justify-content:center;padding:9px 12px;color:var(--muted);font-size:14px;text-align:center}
+    .sessionPreview strong{color:var(--text)}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+    .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 8px;text-align:center}.stat strong{display:block;font-size:23px}.stat span{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
     .head{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 10px}.head h2{margin:0;font-size:17px}
     .entry,.bookitem{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.entry:last-child,.bookitem:last-child{border-bottom:0}
     .entrytitle{font-weight:700}.meta{margin-top:3px;color:var(--muted);font-size:13px}.pages{font-weight:800;white-space:nowrap}.empty{text-align:center;color:var(--muted);padding:18px 8px}
@@ -35,7 +44,7 @@
 <body>
 <main>
   <h1>Lesetracker</h1>
-  <p class="subtitle">Schnell eintragen, wie viel du gelesen hast.</p>
+  <p class="subtitle">Du gibst nur an, wo du angefangen und aufgehört hast.</p>
 
   <section class="card">
     <form id="readingForm" class="grid">
@@ -45,8 +54,25 @@
         <label for="book">Buch</label>
         <div class="bookrow"><select id="book" required></select><button type="button" id="manageBooks" aria-label="Bücher verwalten">+</button></div>
       </div>
-      <div><label for="pages">Gelesene Seiten</label><input id="pages" type="number" inputmode="numeric" min="1" step="1" placeholder="z. B. 35" required></div>
-      <button class="primary" type="submit">Eintragen</button>
+
+      <div class="pagegrid">
+        <div>
+          <label for="startPage">Startseite</label>
+          <input id="startPage" type="number" inputmode="numeric" min="0" step="1" required>
+        </div>
+        <div>
+          <label for="endPage">Endseite</label>
+          <input id="endPage" type="number" inputmode="numeric" min="1" step="1" placeholder="z. B. 185" required>
+        </div>
+      </div>
+
+      <div>
+        <button id="setPosition" type="button">Aktuellen Stand setzen</button>
+        <div class="hint">Nützlich, wenn du Seiten gelesen hast, die du nicht als Session tracken möchtest. Die Zahl aus „Startseite“ wird dann nur als neuer Stand gespeichert.</div>
+      </div>
+
+      <div class="sessionPreview" id="sessionPreview">Endseite eingeben</div>
+      <button class="primary" type="submit">Session speichern</button>
     </form>
   </section>
 
@@ -57,7 +83,7 @@
   </section>
 
   <section class="card" style="margin-top:14px">
-    <div class="head"><h2>Letzte Einträge</h2><button class="link" id="clearEntries" type="button">Alle löschen</button></div>
+    <div class="head"><h2>Letzte Sessions</h2><button class="link" id="clearEntries" type="button">Alle löschen</button></div>
     <div id="entries"></div>
   </section>
 
@@ -78,72 +104,98 @@
       <datalist id="seriesSuggestions"></datalist>
     </div>
     <div><label for="newBook">Buch</label><input id="newBook" type="text" autocomplete="off" placeholder="Buchtitel" required></div>
+    <div>
+      <label for="currentPage">Aktueller Stand</label>
+      <input id="currentPage" type="number" inputmode="numeric" min="0" step="1" value="0" required>
+      <div class="hint">0 bedeutet: noch nicht begonnen.</div>
+    </div>
     <div class="actions"><button class="primary" id="saveBook" type="submit">Buch hinzufügen</button><button id="cancelEdit" type="button" hidden>Abbrechen</button></div>
   </form>
   <div id="bookList" style="margin-top:14px"></div>
   <div class="actions" style="margin-top:14px"><button id="closeBooks" type="button">Schließen</button><button id="backupBooks" type="button">Backup</button></div>
 </dialog>
+
 <div class="toast" id="toast">Gespeichert</div>
 
 <script>
 const DB_NAME='reading-tracker', DB_VERSION=1, BOOKS='books', READINGS='readings';
 const $=id=>document.getElementById(id);
-const dateInput=$('date'),seriesSelect=$('series'),bookSelect=$('book'),pagesInput=$('pages'),booksDialog=$('booksDialog');
+const dateInput=$('date'),seriesSelect=$('series'),bookSelect=$('book'),startPageInput=$('startPage'),endPageInput=$('endPage'),booksDialog=$('booksDialog');
 let booksCache=[];
 
 function localISO(d=new Date()){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
 function seriesOf(book){return (book?.series||'').trim()||'Ohne Reihe'}
+function currentPageOf(book){const n=Number(book?.currentPage);return Number.isInteger(n)&&n>=0?n:0}
 function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(BOOKS))db.createObjectStore(BOOKS,{keyPath:'id',autoIncrement:true});if(!db.objectStoreNames.contains(READINGS))db.createObjectStore(READINGS,{keyPath:'id',autoIncrement:true})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function getAll(store){const db=await openDb();return new Promise((resolve,reject)=>{const t=db.transaction(store,'readonly'),r=t.objectStore(store).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function mutate(store,fn){const db=await openDb();return new Promise((resolve,reject)=>{const t=db.transaction(store,'readwrite');fn(t.objectStore(store));t.oncomplete=resolve;t.onerror=()=>reject(t.error)})}
 
 function sortedBooks(books){return books.slice().sort((a,b)=>seriesOf(a).localeCompare(seriesOf(b),'de')||a.title.localeCompare(b.title,'de'))}
 function seriesList(){return [...new Set(booksCache.map(seriesOf))].sort((a,b)=>a.localeCompare(b,'de'))}
+function selectedBook(){return booksCache.find(b=>String(b.id)===bookSelect.value)||null}
+function syncStartPage(){
+  const book=selectedBook();
+  startPageInput.value=book?currentPageOf(book):'';
+  endPageInput.value='';
+  updatePreview();
+}
 function renderBookOptions(preferredId){
   const selectedSeries=seriesSelect.value;
   const books=booksCache.filter(b=>seriesOf(b)===selectedSeries).sort((a,b)=>a.title.localeCompare(b.title,'de'));
   bookSelect.innerHTML='';
-  if(!books.length){bookSelect.add(new Option('Keine Bücher in dieser Reihe',''));bookSelect.disabled=true;return}
+  if(!books.length){bookSelect.add(new Option('Keine Bücher in dieser Reihe',''));bookSelect.disabled=true;syncStartPage();return}
   bookSelect.disabled=false;
   books.forEach(b=>bookSelect.add(new Option(b.title,String(b.id))));
   const saved=localStorage.getItem('lastBookId');
   const wanted=preferredId&&books.some(b=>String(b.id)===String(preferredId))?String(preferredId):(books.some(b=>String(b.id)===saved)?saved:null);
   if(wanted)bookSelect.value=wanted;
+  syncStartPage();
+}
+function updatePreview(){
+  const start=Number(startPageInput.value),end=Number(endPageInput.value),el=$('sessionPreview');
+  if(endPageInput.value===''){el.textContent='Endseite eingeben';return}
+  if(!Number.isInteger(start)||start<0||!Number.isInteger(end)){el.textContent='Bitte gültige Seiten eingeben';return}
+  if(end<=start){el.textContent='Endseite muss größer als Startseite sein';return}
+  const pages=end-start;
+  el.innerHTML='Diese Session: <strong>&nbsp;'+pages+' Seite'+(pages===1?'':'n')+'</strong>';
 }
 function resetBookForm(){
-  $('bookForm').reset();$('editBookId').value='';$('saveBook').textContent='Buch hinzufügen';$('cancelEdit').hidden=true;
+  $('bookForm').reset();$('editBookId').value='';$('currentPage').value='0';$('saveBook').textContent='Buch hinzufügen';$('cancelEdit').hidden=true;
 }
 function editBook(id){
   const book=booksCache.find(b=>b.id===id);if(!book)return;
-  $('editBookId').value=String(id);$('newSeries').value=seriesOf(book)==='Ohne Reihe'?'':seriesOf(book);$('newBook').value=book.title;$('saveBook').textContent='Speichern';$('cancelEdit').hidden=false;$('newSeries').focus();
+  $('editBookId').value=String(id);$('newSeries').value=seriesOf(book)==='Ohne Reihe'?'':seriesOf(book);$('newBook').value=book.title;$('currentPage').value=String(currentPageOf(book));$('saveBook').textContent='Speichern';$('cancelEdit').hidden=false;$('newSeries').focus();
 }
-async function saveBook(series,title,id){
-  series=series.trim()||'Ohne Reihe';title=title.trim();if(!title)return;
+async function saveBook(series,title,currentPage,id){
+  series=series.trim()||'Ohne Reihe';title=title.trim();currentPage=Number(currentPage);
+  if(!title||!Number.isInteger(currentPage)||currentPage<0)return;
   if(id){
     const old=booksCache.find(b=>b.id===id);if(!old)return;
-    await mutate(BOOKS,s=>s.put({...old,series,title,updatedAt:Date.now()}));
+    await mutate(BOOKS,s=>s.put({...old,series,title,currentPage,updatedAt:Date.now()}));
   }else{
-    await mutate(BOOKS,s=>s.add({series,title,createdAt:Date.now()}));
+    await mutate(BOOKS,s=>s.add({series,title,currentPage,createdAt:Date.now()}));
   }
   await refreshBooks({series,title,id});resetBookForm();
 }
+async function updateBookPosition(bookId,page){
+  const book=booksCache.find(b=>b.id===bookId);if(!book)return;
+  await mutate(BOOKS,s=>s.put({...book,currentPage:page,updatedAt:Date.now()}));
+  book.currentPage=page;
+}
 async function deleteBook(id){
   const readings=await getAll(READINGS);
-  if(readings.some(r=>r.bookId===id)){alert('Dieses Buch wird bereits in Leseeinträgen verwendet und kann deshalb nicht gelöscht werden.');return}
+  if(readings.some(r=>r.bookId===id)){alert('Dieses Buch wird bereits in Sessions verwendet und kann deshalb nicht gelöscht werden.');return}
   await mutate(BOOKS,s=>s.delete(id));await refreshBooks();resetBookForm();
 }
 async function refreshBooks(preselect={}){
   booksCache=sortedBooks(await getAll(BOOKS));
-  const previousSeries=seriesSelect.value;
-  const previousBook=bookSelect.value;
-  const series=seriesList();
-  seriesSelect.innerHTML='';
-  $('seriesSuggestions').innerHTML='';
+  const previousSeries=seriesSelect.value,previousBook=bookSelect.value,series=seriesList();
+  seriesSelect.innerHTML='';$('seriesSuggestions').innerHTML='';
   series.filter(s=>s!=='Ohne Reihe').forEach(s=>$('seriesSuggestions').append(new Option(s)));
 
   if(!series.length){
     seriesSelect.add(new Option('Erst ein Buch hinzufügen …',''));seriesSelect.disabled=true;
-    bookSelect.innerHTML='';bookSelect.add(new Option('Erst ein Buch hinzufügen …',''));bookSelect.disabled=true;
+    bookSelect.innerHTML='';bookSelect.add(new Option('Erst ein Buch hinzufügen …',''));bookSelect.disabled=true;syncStartPage();
   }else{
     seriesSelect.disabled=false;series.forEach(s=>seriesSelect.add(new Option(s,s)));
     const preselectedBook=preselect.id?booksCache.find(b=>b.id===preselect.id):booksCache.find(b=>b.title===preselect.title&&seriesOf(b)===preselect.series);
@@ -156,7 +208,7 @@ async function refreshBooks(preselect={}){
   booksCache.forEach(b=>{
     const row=document.createElement('div');row.className='bookitem';
     const left=document.createElement('div'),name=document.createElement('div'),meta=document.createElement('div');
-    name.className='entrytitle';name.textContent=b.title;meta.className='meta';meta.textContent=seriesOf(b);left.append(name,meta);
+    name.className='entrytitle';name.textContent=b.title;meta.className='meta';meta.textContent=seriesOf(b)+' · aktueller Stand: Seite '+currentPageOf(b);left.append(name,meta);
     const actions=document.createElement('div');actions.className='miniActions';
     const edit=document.createElement('button');edit.type='button';edit.textContent='Ändern';edit.onclick=()=>editBook(b.id);
     const del=document.createElement('button');del.type='button';del.className='danger';del.textContent='Löschen';del.onclick=()=>deleteBook(b.id);
@@ -169,17 +221,18 @@ async function refreshDashboard(){
   const total=(from,to=today)=>readings.filter(r=>r.date>=from&&r.date<=to).reduce((s,r)=>s+Number(r.pages||0),0);
   $('todayPages').textContent=total(today);$('weekPages').textContent=total(week);$('monthPages').textContent=total(month);
   const recent=readings.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt).slice(0,12),holder=$('entries');holder.innerHTML='';
-  if(!recent.length){holder.innerHTML='<div class="empty">Noch keine Leseeinträge.</div>';return}
+  if(!recent.length){holder.innerHTML='<div class="empty">Noch keine Sessions.</div>';return}
   recent.forEach(r=>{
     const book=byId.get(r.bookId),row=document.createElement('div'),left=document.createElement('div'),title=document.createElement('div'),meta=document.createElement('div'),pages=document.createElement('div');
     title.className='entrytitle';title.textContent=book?.title||'Unbekanntes Buch';
     const dateText=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(r.date+'T12:00:00'));
-    meta.className='meta';meta.textContent=book&&seriesOf(book)!=='Ohne Reihe'?seriesOf(book)+' · '+dateText:dateText;
+    const seriesText=book&&seriesOf(book)!=='Ohne Reihe'?seriesOf(book)+' · ':'';
+    meta.className='meta';meta.textContent=seriesText+dateText+' · Seite '+r.startPage+' → '+r.endPage;
     pages.className='pages';pages.textContent=r.pages+' S.';left.append(title,meta);row.className='entry';row.append(left,pages);holder.append(row);
   });
 }
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)}
-async function exportData(){const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]),payload={version:2,exportedAt:new Date().toISOString(),books,readings},blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lesetracker-backup-'+localISO()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+async function exportData(){const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]),payload={version:3,exportedAt:new Date().toISOString(),books,readings},blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lesetracker-backup-'+localISO()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 async function importData(file){
   const data=JSON.parse(await file.text());if(!Array.isArray(data.books)||!Array.isArray(data.readings))throw new Error('Ungültige Backup-Datei');
   const db=await openDb();await new Promise((resolve,reject)=>{const t=db.transaction([BOOKS,READINGS],'readwrite'),b=t.objectStore(BOOKS),r=t.objectStore(READINGS);b.clear();r.clear();data.books.forEach(x=>b.put(x));data.readings.forEach(x=>r.put(x));t.oncomplete=resolve;t.onerror=()=>reject(t.error)});
@@ -187,20 +240,40 @@ async function importData(file){
 }
 
 seriesSelect.addEventListener('change',()=>{localStorage.setItem('lastSeries',seriesSelect.value);renderBookOptions()});
-bookSelect.addEventListener('change',()=>localStorage.setItem('lastBookId',bookSelect.value));
+bookSelect.addEventListener('change',()=>{localStorage.setItem('lastBookId',bookSelect.value);syncStartPage()});
+startPageInput.addEventListener('input',updatePreview);endPageInput.addEventListener('input',updatePreview);
+
+$('setPosition').onclick=async()=>{
+  const book=selectedBook(),page=Number(startPageInput.value);
+  if(!book){booksDialog.showModal();return}
+  if(!Number.isInteger(page)||page<0){alert('Bitte einen gültigen aktuellen Stand eingeben.');return}
+  await updateBookPosition(book.id,page);
+  await refreshBooks({id:book.id});
+  toast('Stand aktualisiert');
+};
+
 $('readingForm').addEventListener('submit',async e=>{
-  e.preventDefault();const bookId=Number(bookSelect.value),pages=Number(pagesInput.value);
-  if(!bookId){booksDialog.showModal();return}if(!Number.isInteger(pages)||pages<1)return;
-  await mutate(READINGS,s=>s.add({date:dateInput.value,bookId,pages,createdAt:Date.now()}));
-  localStorage.setItem('lastSeries',seriesSelect.value);localStorage.setItem('lastBookId',String(bookId));
-  pagesInput.value='';pagesInput.focus();await refreshDashboard();toast('Gespeichert');
+  e.preventDefault();
+  const book=selectedBook(),startPage=Number(startPageInput.value),endPage=Number(endPageInput.value);
+  if(!book){booksDialog.showModal();return}
+  if(!Number.isInteger(startPage)||startPage<0||!Number.isInteger(endPage)||endPage<=startPage){alert('Die Endseite muss größer als die Startseite sein.');return}
+  const pages=endPage-startPage;
+  await mutate(READINGS,s=>s.add({date:dateInput.value,bookId:book.id,startPage,endPage,pages,createdAt:Date.now()}));
+  await updateBookPosition(book.id,endPage);
+  localStorage.setItem('lastSeries',seriesSelect.value);localStorage.setItem('lastBookId',String(book.id));
+  startPageInput.value=String(endPage);endPageInput.value='';updatePreview();
+  await refreshDashboard();toast(pages+' Seiten gespeichert');
 });
-$('manageBooks').onclick=()=>booksDialog.showModal();$('closeBooks').onclick=()=>{booksDialog.close();resetBookForm()};$('cancelEdit').onclick=resetBookForm;
+
+$('manageBooks').onclick=()=>booksDialog.showModal();
+$('closeBooks').onclick=()=>{booksDialog.close();resetBookForm()};
+$('cancelEdit').onclick=resetBookForm;
 $('bookForm').addEventListener('submit',async e=>{
-  e.preventDefault();const id=Number($('editBookId').value)||null,series=$('newSeries').value,title=$('newBook').value;
-  await saveBook(series,title,id);toast(id?'Buch geändert':'Buch hinzugefügt');
+  e.preventDefault();
+  const id=Number($('editBookId').value)||null,series=$('newSeries').value,title=$('newBook').value,currentPage=$('currentPage').value;
+  await saveBook(series,title,currentPage,id);toast(id?'Buch geändert':'Buch hinzugefügt');
 });
-$('clearEntries').onclick=async()=>{if(confirm('Wirklich alle Leseeinträge löschen? Bücher bleiben erhalten.')){await mutate(READINGS,s=>s.clear());await refreshDashboard()}};
+$('clearEntries').onclick=async()=>{if(confirm('Wirklich alle Sessions löschen? Die aktuellen Buchstände bleiben erhalten.')){await mutate(READINGS,s=>s.clear());await refreshDashboard()}};
 $('exportBtn').onclick=exportData;$('backupBooks').onclick=exportData;$('importBtn').onclick=()=>$('importFile').click();
 $('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{await importData(file);toast('Backup importiert')}catch(err){alert('Import fehlgeschlagen: '+err.message)}e.target.value=''});
 (async()=>{dateInput.value=localISO();await refreshBooks();await refreshDashboard();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js')})().catch(err=>{console.error(err);alert('Die lokale Datenbank konnte nicht geöffnet werden.')});
