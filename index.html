@@ -25,20 +25,23 @@
     button.primary{background:var(--accent);color:var(--accentText);border-color:var(--accent)}
     button.danger{color:var(--danger)}
     button.link{width:auto;min-height:auto;border:0;background:transparent;color:var(--muted);padding:6px;font-size:13px}
-    .bookrow{display:grid;grid-template-columns:1fr 52px;gap:8px}.bookrow>button{font-size:24px}
+    .bookrow{display:grid;grid-template-columns:1fr auto;gap:8px}.bookrow>button{width:auto;min-width:82px;padding:0 13px}
     .pagegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .hint{margin-top:7px;color:var(--muted);font-size:12px;line-height:1.4}
     .sessionPreview{min-height:42px;border:1px dashed var(--line);border-radius:13px;display:flex;align-items:center;justify-content:center;padding:9px 12px;color:var(--muted);font-size:14px;text-align:center}
     .sessionPreview strong{color:var(--text)}
+    .forecast{border:1px solid var(--line);border-radius:16px;padding:14px;background:color-mix(in srgb,var(--card) 92%,var(--bg))}
+    .forecastTop{display:flex;justify-content:space-between;gap:12px;align-items:baseline}.forecastTitle{font-weight:750}.forecastDate{font-size:20px;font-weight:800;text-align:right}.forecastMeta{margin-top:6px;color:var(--muted);font-size:13px;line-height:1.4}
+    .progressTrack{height:7px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:11px}.progressBar{height:100%;background:var(--text);border-radius:999px;width:0}
     .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
     .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 8px;text-align:center}.stat strong{display:block;font-size:23px}.stat span{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
     .head{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 10px}.head h2{margin:0;font-size:17px}
     .entry,.bookitem{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.entry:last-child,.bookitem:last-child{border-bottom:0}
-    .entrytitle{font-weight:700}.meta{margin-top:3px;color:var(--muted);font-size:13px}.pages{font-weight:800;white-space:nowrap}.empty{text-align:center;color:var(--muted);padding:18px 8px}
+    .entrytitle{font-weight:700}.meta{margin-top:3px;color:var(--muted);font-size:13px;line-height:1.35}.pages{font-weight:800;white-space:nowrap}.empty{text-align:center;color:var(--muted);padding:18px 8px}
     .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.miniActions{display:flex;gap:6px}.miniActions button{width:auto;min-height:38px;padding:0 10px;font-size:13px}
-    dialog{width:min(560px,calc(100% - 24px));border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--text);padding:18px;box-shadow:0 20px 70px rgba(0,0,0,.25)}dialog::backdrop{background:rgba(0,0,0,.35)}
+    dialog{width:min(560px,calc(100% - 24px));max-height:88vh;overflow:auto;border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--text);padding:18px;box-shadow:0 20px 70px rgba(0,0,0,.25)}dialog::backdrop{background:rgba(0,0,0,.35)}
     .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--card);border-radius:999px;padding:10px 16px;opacity:0;pointer-events:none;transition:.2s;font-size:14px;font-weight:700}.toast.show{opacity:1;transform:translateX(-50%)}
-    @media(max-width:420px){h1{font-size:27px}.card{padding:16px}.stats{gap:7px}.stat strong{font-size:21px}.miniActions{flex-direction:column}.miniActions button{min-height:34px}}
+    @media(max-width:420px){h1{font-size:27px}.card{padding:16px}.stats{gap:7px}.stat strong{font-size:21px}.miniActions{flex-direction:column}.miniActions button{min-height:34px}.forecastTop{align-items:flex-start}.forecastDate{font-size:18px}}
   </style>
 </head>
 <body>
@@ -52,7 +55,13 @@
       <div><label for="series">Buchreihe</label><select id="series" required></select></div>
       <div>
         <label for="book">Buch</label>
-        <div class="bookrow"><select id="book" required></select><button type="button" id="manageBooks" aria-label="Bücher verwalten">+</button></div>
+        <div class="bookrow"><select id="book" required></select><button type="button" id="manageBooks">Bücher</button></div>
+      </div>
+
+      <div id="forecastBox" class="forecast" hidden>
+        <div class="forecastTop"><div class="forecastTitle">Voraussichtlich fertig</div><div class="forecastDate" id="forecastDate">–</div></div>
+        <div class="forecastMeta" id="forecastMeta"></div>
+        <div class="progressTrack"><div class="progressBar" id="progressBar"></div></div>
       </div>
 
       <div class="pagegrid">
@@ -68,7 +77,7 @@
 
       <div>
         <button id="setPosition" type="button">Aktuellen Stand setzen</button>
-        <div class="hint">Nützlich, wenn du Seiten gelesen hast, die du nicht als Session tracken möchtest. Die Zahl aus „Startseite“ wird dann nur als neuer Stand gespeichert.</div>
+        <div class="hint">Für Seiten, die du nicht als Session tracken möchtest. Die Startseite wird dann nur als neuer Stand gespeichert.</div>
       </div>
 
       <div class="sessionPreview" id="sessionPreview">Endseite eingeben</div>
@@ -95,7 +104,8 @@
 </main>
 
 <dialog id="booksDialog">
-  <h2 style="margin:0 0 14px">Bücher verwalten</h2>
+  <h2 style="margin:0 0 4px">Bücher verwalten</h2>
+  <div class="hint" style="margin:0 0 16px">Hier kannst du bestehende Bücher nachträglich bearbeiten – inklusive aktuellem Stand und letzter Seite.</div>
   <form id="bookForm" class="grid">
     <input id="editBookId" type="hidden">
     <div>
@@ -104,14 +114,21 @@
       <datalist id="seriesSuggestions"></datalist>
     </div>
     <div><label for="newBook">Buch</label><input id="newBook" type="text" autocomplete="off" placeholder="Buchtitel" required></div>
-    <div>
-      <label for="currentPage">Aktueller Stand</label>
-      <input id="currentPage" type="number" inputmode="numeric" min="0" step="1" value="0" required>
-      <div class="hint">0 bedeutet: noch nicht begonnen.</div>
+    <div class="pagegrid">
+      <div>
+        <label for="currentPage">Aktueller Stand</label>
+        <input id="currentPage" type="number" inputmode="numeric" min="0" step="1" value="0" required>
+      </div>
+      <div>
+        <label for="totalPages">Letzte Seite</label>
+        <input id="totalPages" type="number" inputmode="numeric" min="0" step="1" value="0" required>
+      </div>
     </div>
+    <div class="hint">Bei „Letzte Seite“ kannst du 0 lassen, solange du sie noch nicht hinterlegt hast.</div>
     <div class="actions"><button class="primary" id="saveBook" type="submit">Buch hinzufügen</button><button id="cancelEdit" type="button" hidden>Abbrechen</button></div>
   </form>
-  <div id="bookList" style="margin-top:14px"></div>
+  <div class="head" style="margin-top:20px"><h2>Deine Bücher</h2></div>
+  <div id="bookList"></div>
   <div class="actions" style="margin-top:14px"><button id="closeBooks" type="button">Schließen</button><button id="backupBooks" type="button">Backup</button></div>
 </dialog>
 
@@ -121,11 +138,15 @@
 const DB_NAME='reading-tracker', DB_VERSION=1, BOOKS='books', READINGS='readings';
 const $=id=>document.getElementById(id);
 const dateInput=$('date'),seriesSelect=$('series'),bookSelect=$('book'),startPageInput=$('startPage'),endPageInput=$('endPage'),booksDialog=$('booksDialog');
-let booksCache=[];
+let booksCache=[],readingsCache=[];
 
 function localISO(d=new Date()){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+function parseLocalDate(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)}
+function daysBetween(a,b){return Math.floor((parseLocalDate(b)-parseLocalDate(a))/86400000)}
+function addDays(date,days){const d=new Date(date.getFullYear(),date.getMonth(),date.getDate());d.setDate(d.getDate()+days);return d}
 function seriesOf(book){return (book?.series||'').trim()||'Ohne Reihe'}
 function currentPageOf(book){const n=Number(book?.currentPage);return Number.isInteger(n)&&n>=0?n:0}
+function totalPagesOf(book){const n=Number(book?.totalPages);return Number.isInteger(n)&&n>0?n:0}
 function openDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(BOOKS))db.createObjectStore(BOOKS,{keyPath:'id',autoIncrement:true});if(!db.objectStoreNames.contains(READINGS))db.createObjectStore(READINGS,{keyPath:'id',autoIncrement:true})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function getAll(store){const db=await openDb();return new Promise((resolve,reject)=>{const t=db.transaction(store,'readonly'),r=t.objectStore(store).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function mutate(store,fn){const db=await openDb();return new Promise((resolve,reject)=>{const t=db.transaction(store,'readwrite');fn(t.objectStore(store));t.oncomplete=resolve;t.onerror=()=>reject(t.error)})}
@@ -133,11 +154,74 @@ async function mutate(store,fn){const db=await openDb();return new Promise((reso
 function sortedBooks(books){return books.slice().sort((a,b)=>seriesOf(a).localeCompare(seriesOf(b),'de')||a.title.localeCompare(b.title,'de'))}
 function seriesList(){return [...new Set(booksCache.map(seriesOf))].sort((a,b)=>a.localeCompare(b,'de'))}
 function selectedBook(){return booksCache.find(b=>String(b.id)===bookSelect.value)||null}
+
+function forecastFor(book){
+  const total=totalPagesOf(book),current=currentPageOf(book);
+  if(!total)return {state:'missing'};
+  if(current>=total)return {state:'done',progress:100};
+
+  const today=localISO(),cutoff=localISO(addDays(new Date(),-13));
+  const allForBook=readingsCache.filter(r=>r.bookId===book.id&&r.date<=today).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!allForBook.length)return {state:'nodata',progress:Math.min(100,current/total*100)};
+
+  const recent=allForBook.filter(r=>r.date>=cutoff);
+  const source=recent.length?recent:allForBook.slice(-5);
+  const first=source[0].date;
+  const span=Math.max(1,daysBetween(first,today)+1);
+  const pages=source.reduce((sum,r)=>sum+Number(r.pages||0),0);
+  const pace=pages/span;
+  if(!(pace>0))return {state:'nodata',progress:Math.min(100,current/total*100)};
+
+  const remaining=Math.max(0,total-current);
+  const days=Math.ceil(remaining/pace);
+  return {
+    state:'ok',
+    pace,
+    days,
+    finish:addDays(new Date(),days),
+    progress:Math.min(100,current/total*100),
+    remaining,
+    span,
+    sessions:source.length,
+    fallback:!recent.length
+  };
+}
+
+function renderForecast(){
+  const box=$('forecastBox'),book=selectedBook();
+  if(!book){box.hidden=true;return}
+  box.hidden=false;
+  const result=forecastFor(book),total=totalPagesOf(book),current=currentPageOf(book);
+  $('progressBar').style.width=(result.progress||0)+'%';
+
+  if(result.state==='missing'){
+    $('forecastDate').textContent='–';
+    $('forecastMeta').textContent='Hinterlege unter „Bücher“ die letzte Seite, damit eine Prognose berechnet werden kann.';
+    $('progressBar').style.width='0%';
+    return;
+  }
+  if(result.state==='done'){
+    $('forecastDate').textContent='Fertig';
+    $('forecastMeta').textContent='Seite '+current+' von '+total+' · 100 %';
+    return;
+  }
+  if(result.state==='nodata'){
+    $('forecastDate').textContent='Noch offen';
+    $('forecastMeta').textContent='Seite '+current+' von '+total+' · '+Math.round((current/total)*100)+' % · Noch zu wenig Lesedaten für eine Prognose.';
+    return;
+  }
+
+  $('forecastDate').textContent=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'short'}).format(result.finish);
+  const basis=result.fallback?'letzte Sessions':'letzte '+result.span+' Tage';
+  $('forecastMeta').textContent='Seite '+current+' von '+total+' · noch '+result.remaining+' Seiten · Ø '+result.pace.toFixed(1).replace('.',',')+' S./Tag ('+basis+')';
+}
+
 function syncStartPage(){
   const book=selectedBook();
   startPageInput.value=book?currentPageOf(book):'';
   endPageInput.value='';
   updatePreview();
+  renderForecast();
 }
 function renderBookOptions(preferredId){
   const selectedSeries=seriesSelect.value;
@@ -156,31 +240,44 @@ function updatePreview(){
   if(endPageInput.value===''){el.textContent='Endseite eingeben';return}
   if(!Number.isInteger(start)||start<0||!Number.isInteger(end)){el.textContent='Bitte gültige Seiten eingeben';return}
   if(end<=start){el.textContent='Endseite muss größer als Startseite sein';return}
+  const book=selectedBook(),total=totalPagesOf(book);
+  if(total&&end>total){el.textContent='Endseite liegt hinter der letzten Seite ('+total+')';return}
   const pages=end-start;
   el.innerHTML='Diese Session: <strong>&nbsp;'+pages+' Seite'+(pages===1?'':'n')+'</strong>';
 }
 function resetBookForm(){
-  $('bookForm').reset();$('editBookId').value='';$('currentPage').value='0';$('saveBook').textContent='Buch hinzufügen';$('cancelEdit').hidden=true;
+  $('bookForm').reset();$('editBookId').value='';$('currentPage').value='0';$('totalPages').value='0';$('saveBook').textContent='Buch hinzufügen';$('cancelEdit').hidden=true;
 }
 function editBook(id){
   const book=booksCache.find(b=>b.id===id);if(!book)return;
-  $('editBookId').value=String(id);$('newSeries').value=seriesOf(book)==='Ohne Reihe'?'':seriesOf(book);$('newBook').value=book.title;$('currentPage').value=String(currentPageOf(book));$('saveBook').textContent='Speichern';$('cancelEdit').hidden=false;$('newSeries').focus();
+  $('editBookId').value=String(id);
+  $('newSeries').value=seriesOf(book)==='Ohne Reihe'?'':seriesOf(book);
+  $('newBook').value=book.title;
+  $('currentPage').value=String(currentPageOf(book));
+  $('totalPages').value=String(totalPagesOf(book));
+  $('saveBook').textContent='Speichern';
+  $('cancelEdit').hidden=false;
+  $('newSeries').focus();
 }
-async function saveBook(series,title,currentPage,id){
-  series=series.trim()||'Ohne Reihe';title=title.trim();currentPage=Number(currentPage);
-  if(!title||!Number.isInteger(currentPage)||currentPage<0)return;
+async function saveBook(series,title,currentPage,totalPages,id){
+  series=series.trim()||'Ohne Reihe';title=title.trim();currentPage=Number(currentPage);totalPages=Number(totalPages);
+  if(!title||!Number.isInteger(currentPage)||currentPage<0||!Number.isInteger(totalPages)||totalPages<0)return;
+  if(totalPages>0&&currentPage>totalPages){alert('Der aktuelle Stand kann nicht hinter der letzten Seite liegen.');return}
   if(id){
     const old=booksCache.find(b=>b.id===id);if(!old)return;
-    await mutate(BOOKS,s=>s.put({...old,series,title,currentPage,updatedAt:Date.now()}));
+    await mutate(BOOKS,s=>s.put({...old,series,title,currentPage,totalPages,updatedAt:Date.now()}));
   }else{
-    await mutate(BOOKS,s=>s.add({series,title,currentPage,createdAt:Date.now()}));
+    await mutate(BOOKS,s=>s.add({series,title,currentPage,totalPages,createdAt:Date.now()}));
   }
   await refreshBooks({series,title,id});resetBookForm();
 }
 async function updateBookPosition(bookId,page){
   const book=booksCache.find(b=>b.id===bookId);if(!book)return;
+  const total=totalPagesOf(book);
+  if(total&&page>total){alert('Der Stand kann nicht hinter der letzten Seite liegen.');return false}
   await mutate(BOOKS,s=>s.put({...book,currentPage:page,updatedAt:Date.now()}));
   book.currentPage=page;
+  return true;
 }
 async function deleteBook(id){
   const readings=await getAll(READINGS);
@@ -189,6 +286,7 @@ async function deleteBook(id){
 }
 async function refreshBooks(preselect={}){
   booksCache=sortedBooks(await getAll(BOOKS));
+  readingsCache=await getAll(READINGS);
   const previousSeries=seriesSelect.value,previousBook=bookSelect.value,series=seriesList();
   seriesSelect.innerHTML='';$('seriesSuggestions').innerHTML='';
   series.filter(s=>s!=='Ohne Reihe').forEach(s=>$('seriesSuggestions').append(new Option(s)));
@@ -208,21 +306,30 @@ async function refreshBooks(preselect={}){
   booksCache.forEach(b=>{
     const row=document.createElement('div');row.className='bookitem';
     const left=document.createElement('div'),name=document.createElement('div'),meta=document.createElement('div');
-    name.className='entrytitle';name.textContent=b.title;meta.className='meta';meta.textContent=seriesOf(b)+' · aktueller Stand: Seite '+currentPageOf(b);left.append(name,meta);
+    const total=totalPagesOf(b),forecast=forecastFor(b);
+    name.className='entrytitle';name.textContent=b.title;
+    let details=seriesOf(b)+' · Seite '+currentPageOf(b);
+    if(total)details+=' / '+total;
+    if(forecast.state==='ok')details+=' · ca. fertig '+new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit'}).format(forecast.finish);
+    else if(forecast.state==='done')details+=' · fertig';
+    meta.className='meta';meta.textContent=details;left.append(name,meta);
     const actions=document.createElement('div');actions.className='miniActions';
-    const edit=document.createElement('button');edit.type='button';edit.textContent='Ändern';edit.onclick=()=>editBook(b.id);
+    const edit=document.createElement('button');edit.type='button';edit.textContent='Bearbeiten';edit.onclick=()=>editBook(b.id);
     const del=document.createElement('button');del.type='button';del.className='danger';del.textContent='Löschen';del.onclick=()=>deleteBook(b.id);
     actions.append(edit,del);row.append(left,actions);list.append(row);
   });
+  renderForecast();
 }
 function startOfWeek(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
 async function refreshDashboard(){
-  const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]),byId=new Map(books.map(b=>[b.id,b])),now=new Date(),today=localISO(now),week=localISO(startOfWeek(now)),month=today.slice(0,7)+'-01';
+  const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]);
+  booksCache=sortedBooks(books);readingsCache=readings;
+  const byId=new Map(books.map(b=>[b.id,b])),now=new Date(),today=localISO(now),week=localISO(startOfWeek(now)),month=today.slice(0,7)+'-01';
   const total=(from,to=today)=>readings.filter(r=>r.date>=from&&r.date<=to).reduce((s,r)=>s+Number(r.pages||0),0);
   $('todayPages').textContent=total(today);$('weekPages').textContent=total(week);$('monthPages').textContent=total(month);
   const recent=readings.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt).slice(0,12),holder=$('entries');holder.innerHTML='';
-  if(!recent.length){holder.innerHTML='<div class="empty">Noch keine Sessions.</div>';return}
-  recent.forEach(r=>{
+  if(!recent.length)holder.innerHTML='<div class="empty">Noch keine Sessions.</div>';
+  else recent.forEach(r=>{
     const book=byId.get(r.bookId),row=document.createElement('div'),left=document.createElement('div'),title=document.createElement('div'),meta=document.createElement('div'),pages=document.createElement('div');
     title.className='entrytitle';title.textContent=book?.title||'Unbekanntes Buch';
     const dateText=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(r.date+'T12:00:00'));
@@ -230,9 +337,10 @@ async function refreshDashboard(){
     meta.className='meta';meta.textContent=seriesText+dateText+' · Seite '+r.startPage+' → '+r.endPage;
     pages.className='pages';pages.textContent=r.pages+' S.';left.append(title,meta);row.className='entry';row.append(left,pages);holder.append(row);
   });
+  renderForecast();
 }
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)}
-async function exportData(){const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]),payload={version:3,exportedAt:new Date().toISOString(),books,readings},blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lesetracker-backup-'+localISO()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+async function exportData(){const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]),payload={version:4,exportedAt:new Date().toISOString(),books,readings},blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lesetracker-backup-'+localISO()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 async function importData(file){
   const data=JSON.parse(await file.text());if(!Array.isArray(data.books)||!Array.isArray(data.readings))throw new Error('Ungültige Backup-Datei');
   const db=await openDb();await new Promise((resolve,reject)=>{const t=db.transaction([BOOKS,READINGS],'readwrite'),b=t.objectStore(BOOKS),r=t.objectStore(READINGS);b.clear();r.clear();data.books.forEach(x=>b.put(x));data.readings.forEach(x=>r.put(x));t.oncomplete=resolve;t.onerror=()=>reject(t.error)});
@@ -247,7 +355,7 @@ $('setPosition').onclick=async()=>{
   const book=selectedBook(),page=Number(startPageInput.value);
   if(!book){booksDialog.showModal();return}
   if(!Number.isInteger(page)||page<0){alert('Bitte einen gültigen aktuellen Stand eingeben.');return}
-  await updateBookPosition(book.id,page);
+  const ok=await updateBookPosition(book.id,page);if(!ok)return;
   await refreshBooks({id:book.id});
   toast('Stand aktualisiert');
 };
@@ -257,6 +365,7 @@ $('readingForm').addEventListener('submit',async e=>{
   const book=selectedBook(),startPage=Number(startPageInput.value),endPage=Number(endPageInput.value);
   if(!book){booksDialog.showModal();return}
   if(!Number.isInteger(startPage)||startPage<0||!Number.isInteger(endPage)||endPage<=startPage){alert('Die Endseite muss größer als die Startseite sein.');return}
+  const total=totalPagesOf(book);if(total&&endPage>total){alert('Die Endseite liegt hinter der letzten Seite des Buchs ('+total+').');return}
   const pages=endPage-startPage;
   await mutate(READINGS,s=>s.add({date:dateInput.value,bookId:book.id,startPage,endPage,pages,createdAt:Date.now()}));
   await updateBookPosition(book.id,endPage);
@@ -270,10 +379,10 @@ $('closeBooks').onclick=()=>{booksDialog.close();resetBookForm()};
 $('cancelEdit').onclick=resetBookForm;
 $('bookForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const id=Number($('editBookId').value)||null,series=$('newSeries').value,title=$('newBook').value,currentPage=$('currentPage').value;
-  await saveBook(series,title,currentPage,id);toast(id?'Buch geändert':'Buch hinzugefügt');
+  const id=Number($('editBookId').value)||null,series=$('newSeries').value,title=$('newBook').value,currentPage=$('currentPage').value,totalPages=$('totalPages').value;
+  await saveBook(series,title,currentPage,totalPages,id);toast(id?'Buch geändert':'Buch hinzugefügt');
 });
-$('clearEntries').onclick=async()=>{if(confirm('Wirklich alle Sessions löschen? Die aktuellen Buchstände bleiben erhalten.')){await mutate(READINGS,s=>s.clear());await refreshDashboard()}};
+$('clearEntries').onclick=async()=>{if(confirm('Wirklich alle Sessions löschen? Die aktuellen Buchstände bleiben erhalten.')){await mutate(READINGS,s=>s.clear());await refreshDashboard();await refreshBooks({id:selectedBook()?.id})}};
 $('exportBtn').onclick=exportData;$('backupBooks').onclick=exportData;$('importBtn').onclick=()=>$('importFile').click();
 $('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{await importData(file);toast('Backup importiert')}catch(err){alert('Import fehlgeschlagen: '+err.message)}e.target.value=''});
 (async()=>{dateInput.value=localISO();await refreshBooks();await refreshDashboard();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js')})().catch(err=>{console.error(err);alert('Die lokale Datenbank konnte nicht geöffnet werden.')});
