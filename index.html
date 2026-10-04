@@ -140,6 +140,17 @@ const $=id=>document.getElementById(id);
 const dateInput=$('date'),seriesSelect=$('series'),bookSelect=$('book'),startPageInput=$('startPage'),endPageInput=$('endPage'),booksDialog=$('booksDialog');
 let booksCache=[],readingsCache=[];
 
+async function requestPersistentStorage(){
+  if(!navigator.storage?.persist)return false;
+  try{
+    if(await navigator.storage.persisted?.())return true;
+    return await navigator.storage.persist();
+  }catch(err){
+    console.warn('Persistenter Speicher konnte nicht angefordert werden.',err);
+    return false;
+  }
+}
+
 function localISO(d=new Date()){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
 function parseLocalDate(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)}
 function daysBetween(a,b){return Math.floor((parseLocalDate(b)-parseLocalDate(a))/86400000)}
@@ -385,7 +396,7 @@ $('bookForm').addEventListener('submit',async e=>{
 $('clearEntries').onclick=async()=>{if(confirm('Wirklich alle Sessions löschen? Die aktuellen Buchstände bleiben erhalten.')){await mutate(READINGS,s=>s.clear());await refreshDashboard();await refreshBooks({id:selectedBook()?.id})}};
 $('exportBtn').onclick=exportData;$('backupBooks').onclick=exportData;$('importBtn').onclick=()=>$('importFile').click();
 $('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{await importData(file);toast('Backup importiert')}catch(err){alert('Import fehlgeschlagen: '+err.message)}e.target.value=''});
-(async()=>{dateInput.value=localISO();await refreshBooks();await refreshDashboard();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js')})().catch(err=>{console.error(err);alert('Die lokale Datenbank konnte nicht geöffnet werden.')});
+(async()=>{await requestPersistentStorage();dateInput.value=localISO();await refreshBooks();await refreshDashboard();if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js')})().catch(err=>{console.error(err);alert('Die lokale Datenbank konnte nicht geöffnet werden.')});
 </script>
 </body>
 </html>
