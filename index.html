@@ -99,6 +99,7 @@
   <section class="card">
     <div class="head"><h2>Daten</h2></div>
     <div class="actions"><button id="exportBtn" type="button">JSON exportieren</button><button id="importBtn" type="button">JSON importieren</button></div>
+    <div class="hint" id="storageStatus">Speicherschutz: wird geprüft …</div>
     <input id="importFile" type="file" accept="application/json,.json" hidden>
   </section>
 </main>
@@ -141,12 +142,19 @@ const dateInput=$('date'),seriesSelect=$('series'),bookSelect=$('book'),startPag
 let booksCache=[],readingsCache=[];
 
 async function requestPersistentStorage(){
-  if(!navigator.storage?.persist)return false;
+  const status=$('storageStatus');
+  if(!navigator.storage?.persist){
+    if(status)status.textContent='Speicherschutz: nicht unterstützt';
+    return false;
+  }
   try{
-    if(await navigator.storage.persisted?.())return true;
-    return await navigator.storage.persist();
+    let persistent=await navigator.storage.persisted?.();
+    if(!persistent)persistent=await navigator.storage.persist();
+    if(status)status.textContent=persistent?'Speicherschutz: aktiv':'Speicherschutz: nicht gewährt';
+    return persistent;
   }catch(err){
     console.warn('Persistenter Speicher konnte nicht angefordert werden.',err);
+    if(status)status.textContent='Speicherschutz: nicht verfügbar';
     return false;
   }
 }
