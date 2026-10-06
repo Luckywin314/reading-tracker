@@ -1,4 +1,4 @@
-const CACHE='lesetracker-v6';
+const CACHE='lesetracker-v7';
 const FILES=['./','./index.html','./manifest.webmanifest','./icon.svg'];
 
 self.addEventListener('install',e=>{
