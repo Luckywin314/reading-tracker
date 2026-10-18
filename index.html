@@ -37,7 +37,7 @@
     .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 8px;text-align:center}.stat strong{display:block;font-size:23px}.stat span{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
     .head{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 10px}.head h2{margin:0;font-size:17px}
     .entry,.bookitem{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.entry:last-child,.bookitem:last-child{border-bottom:0}
-    .entrytitle{font-weight:700}.meta{margin-top:3px;color:var(--muted);font-size:13px;line-height:1.35}.pages{font-weight:800;white-space:nowrap}.empty{text-align:center;color:var(--muted);padding:18px 8px}
+    .entrytitle{font-weight:700}.meta{margin-top:3px;color:var(--muted);font-size:13px;line-height:1.35}.pages{font-weight:800;white-space:nowrap}.entrySide{display:flex;flex-direction:column;align-items:flex-end;gap:6px}.entrySide button{width:auto;min-height:32px;padding:0 9px;font-size:12px}.empty{text-align:center;color:var(--muted);padding:18px 8px}
     .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.miniActions{display:flex;gap:6px}.miniActions button{width:auto;min-height:38px;padding:0 10px;font-size:13px}
     dialog{width:min(560px,calc(100% - 24px));max-height:88vh;overflow:auto;border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--text);padding:18px;box-shadow:0 20px 70px rgba(0,0,0,.25)}dialog::backdrop{background:rgba(0,0,0,.35)}
     .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--card);border-radius:999px;padding:10px 16px;opacity:0;pointer-events:none;transition:.2s;font-size:14px;font-weight:700}.toast.show{opacity:1;transform:translateX(-50%)}
@@ -137,12 +137,36 @@
   <div class="actions" style="margin-top:14px"><button id="closeBooks" type="button">Schließen</button><button id="backupBooks" type="button">Backup</button></div>
 </dialog>
 
+<dialog id="sessionDialog">
+  <h2 style="margin:0 0 4px">Session bearbeiten</h2>
+  <div class="hint" id="sessionBookLabel" style="margin:0 0 16px"></div>
+  <form id="sessionForm" class="grid">
+    <input id="editSessionId" type="hidden">
+    <div><label for="editSessionDate">Datum</label><input id="editSessionDate" type="date" required></div>
+    <div class="pagegrid">
+      <div>
+        <label for="editSessionStart">Startseite</label>
+        <input id="editSessionStart" type="number" inputmode="numeric" min="0" step="1" required>
+      </div>
+      <div>
+        <label for="editSessionEnd">Endseite</label>
+        <input id="editSessionEnd" type="number" inputmode="numeric" min="1" step="1" required>
+      </div>
+    </div>
+    <div class="sessionPreview" id="editSessionPreview"></div>
+    <div class="actions">
+      <button type="button" id="cancelSessionEdit">Abbrechen</button>
+      <button class="primary" type="submit">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast">Gespeichert</div>
 
 <script>
 const DB_NAME='reading-tracker', DB_VERSION=1, BOOKS='books', READINGS='readings';
 const $=id=>document.getElementById(id);
-const dateInput=$('date'),seriesSelect=$('series'),bookSelect=$('book'),startPageInput=$('startPage'),endPageInput=$('endPage'),booksDialog=$('booksDialog');
+const dateInput=$('date'),seriesSelect=$('series'),bookSelect=$('book'),startPageInput=$('startPage'),endPageInput=$('endPage'),booksDialog=$('booksDialog'),sessionDialog=$('sessionDialog');
 let booksCache=[],readingsCache=[];
 
 async function requestPersistentStorage(){
@@ -433,6 +457,59 @@ async function refreshBooks(preselect={}){
   });
   renderForecast();
 }
+function updateSessionEditPreview(){
+  const start=Number($('editSessionStart').value),end=Number($('editSessionEnd').value),el=$('editSessionPreview');
+  if(!Number.isInteger(start)||!Number.isInteger(end)||end<=start){el.textContent='Endseite muss größer als Startseite sein';return}
+  const pages=end-start;
+  el.innerHTML='Korrigierte Session: <strong>&nbsp;'+pages+' Seite'+(pages===1?'':'n')+'</strong>';
+}
+
+function editSession(id){
+  const session=readingsCache.find(r=>r.id===id);if(!session)return;
+  const book=booksCache.find(b=>b.id===session.bookId);
+  $('editSessionId').value=String(id);
+  $('editSessionDate').value=session.date;
+  $('editSessionStart').value=String(session.startPage);
+  $('editSessionEnd').value=String(session.endPage);
+  $('sessionBookLabel').textContent=book?seriesOf(book)+' · '+book.title:'Unbekanntes Buch';
+  updateSessionEditPreview();
+  sessionDialog.showModal();
+}
+
+function latestSessionForBook(bookId,sessions=readingsCache){
+  return sessions.filter(r=>r.bookId===bookId).slice().sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0))[0]||null;
+}
+
+async function saveSessionEdit(){
+  const id=Number($('editSessionId').value),old=readingsCache.find(r=>r.id===id);
+  if(!old)return false;
+  const book=booksCache.find(b=>b.id===old.bookId);
+  if(!book)return false;
+
+  const date=$('editSessionDate').value,startPage=Number($('editSessionStart').value),endPage=Number($('editSessionEnd').value);
+  if(!date||!Number.isInteger(startPage)||!Number.isInteger(endPage)||endPage<=startPage){alert('Bitte gültige Seiten eingeben.');return false}
+  const first=startPageOf(book),total=totalPagesOf(book);
+  if(startPage<first){alert('Die Startseite liegt vor der Anfangsseite des Buchs ('+first+').');return false}
+  if(total&&endPage>total){alert('Die Endseite liegt hinter der letzten Seite des Buchs ('+total+').');return false}
+
+  const wasLatest=latestSessionForBook(old.bookId)?.id===old.id;
+  const positionCameFromSession=wasLatest&&currentPageOf(book)===Number(old.endPage);
+  const updated={...old,date,startPage,endPage,pages:endPage-startPage,updatedAt:Date.now()};
+
+  await mutate(READINGS,s=>s.put(updated));
+
+  if(positionCameFromSession){
+    const sessions=(await getAll(READINGS));
+    const latest=latestSessionForBook(old.bookId,sessions);
+    if(latest)await updateBookPosition(book.id,Number(latest.endPage));
+  }
+
+  await refreshDashboard();
+  await refreshBooks({id:book.id});
+  sessionDialog.close();
+  return true;
+}
+
 function startOfWeek(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
 async function refreshDashboard(){
   const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]);
@@ -443,17 +520,19 @@ async function refreshDashboard(){
   const recent=readings.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt).slice(0,12),holder=$('entries');holder.innerHTML='';
   if(!recent.length)holder.innerHTML='<div class="empty">Noch keine Sessions.</div>';
   else recent.forEach(r=>{
-    const book=byId.get(r.bookId),row=document.createElement('div'),left=document.createElement('div'),title=document.createElement('div'),meta=document.createElement('div'),pages=document.createElement('div');
+    const book=byId.get(r.bookId),row=document.createElement('div'),left=document.createElement('div'),title=document.createElement('div'),meta=document.createElement('div'),side=document.createElement('div'),pages=document.createElement('div'),edit=document.createElement('button');
     title.className='entrytitle';title.textContent=book?.title||'Unbekanntes Buch';
     const dateText=new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(r.date+'T12:00:00'));
     const seriesText=book&&seriesOf(book)!=='Ohne Reihe'?seriesOf(book)+' · ':'';
     meta.className='meta';meta.textContent=seriesText+dateText+' · Seite '+r.startPage+' → '+r.endPage;
-    pages.className='pages';pages.textContent=r.pages+' S.';left.append(title,meta);row.className='entry';row.append(left,pages);holder.append(row);
+    pages.className='pages';pages.textContent=r.pages+' S.';
+    edit.type='button';edit.textContent='Bearbeiten';edit.onclick=()=>editSession(r.id);
+    side.className='entrySide';side.append(pages,edit);left.append(title,meta);row.className='entry';row.append(left,side);holder.append(row);
   });
   renderForecast();
 }
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600)}
-async function exportData(){const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]),payload={version:5,exportedAt:new Date().toISOString(),books,readings},blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lesetracker-backup-'+localISO()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+async function exportData(){const [books,readings]=await Promise.all([getAll(BOOKS),getAll(READINGS)]),payload={version:6,exportedAt:new Date().toISOString(),books,readings},blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='lesetracker-backup-'+localISO()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 async function importData(file){
   const data=JSON.parse(await file.text());if(!Array.isArray(data.books)||!Array.isArray(data.readings))throw new Error('Ungültige Backup-Datei');
   const db=await openDb();await new Promise((resolve,reject)=>{const t=db.transaction([BOOKS,READINGS],'readwrite'),b=t.objectStore(BOOKS),r=t.objectStore(READINGS);b.clear();r.clear();data.books.forEach(x=>b.put(x));data.readings.forEach(x=>r.put(x));t.oncomplete=resolve;t.onerror=()=>reject(t.error)});
@@ -497,6 +576,10 @@ $('bookForm').addEventListener('submit',async e=>{
   const id=Number($('editBookId').value)||null,series=$('newSeries').value,title=$('newBook').value,firstPage=$('bookStartPage').value,currentPage=$('currentPage').value,totalPages=$('totalPages').value;
   await saveBook(series,title,firstPage,currentPage,totalPages,id);toast(id?'Buch geändert':'Buch hinzugefügt');
 });
+$('editSessionStart').addEventListener('input',updateSessionEditPreview);
+$('editSessionEnd').addEventListener('input',updateSessionEditPreview);
+$('cancelSessionEdit').onclick=()=>sessionDialog.close();
+$('sessionForm').addEventListener('submit',async e=>{e.preventDefault();if(await saveSessionEdit())toast('Session korrigiert')});
 $('clearEntries').onclick=async()=>{if(confirm('Wirklich alle Sessions löschen? Die aktuellen Buchstände bleiben erhalten.')){await mutate(READINGS,s=>s.clear());await refreshDashboard();await refreshBooks({id:selectedBook()?.id})}};
 $('exportBtn').onclick=exportData;$('backupBooks').onclick=exportData;$('importBtn').onclick=()=>$('importFile').click();
 $('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{await importData(file);toast('Backup importiert')}catch(err){alert('Import fehlgeschlagen: '+err.message)}e.target.value=''});
